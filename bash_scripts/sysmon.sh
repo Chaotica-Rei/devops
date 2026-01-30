@@ -113,6 +113,7 @@ if [ "$(date +%H)" -eq 0 ]; then  # В 00:00
     rotate_logs
 fi
 
+# завершение работы
 log_message "INFO" "Завершение работы скрипта."
 
 exit 0
