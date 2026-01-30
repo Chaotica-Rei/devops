@@ -6,7 +6,7 @@
 
 # Переменные
 
-LOG_DIR="/var/log/sysmon" # директория с логами
+LOG_DIR="$HOME/logs/sysmon" # директория с логами
 LOG_FILE="${LOG_DIR}/monitor.log" # лог мониторинга системы
 LOG_ERROR="${LOG_DIR}/error.log" # лог ошибок
 ROTATE_DAYS=3 # срок хранения логов в днях
