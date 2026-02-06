@@ -2,18 +2,20 @@
 
 # Универсальный скрипт установки
 
-set -e  # Прекращать выполнение при любой ошибке
+set -e  # прекращать выполнение при любой ошибке
 
 echo "Запуск автоматизированного скрипта установки..."
 
-# --- 1. Определение ОС и пакетного менеджера ---
+# Функции
+
+# Определение ОС и пакетного менеджера
 detect_distro() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         DISTRO="${ID}"
         VERSION_ID="${VERSION_ID}"
     else
-        echo "Не удалось определить дистрибутив!"
+        echo "Не удалось определить дистрибутив"
         exit 1
     fi
 
@@ -43,14 +45,14 @@ detect_distro() {
     echo "Пакетный менеджер: ${PKG_MANAGER}"
 }
 
-# --- 2. Установка пакетов ---
+# Установка пакетов
 install_packages() {
     echo "Устанавливаем необходимые пакеты..."
 
     # Список пакетов (пример для веб‑сервера + БД)
     PACKAGES=(
         nginx
-        mysql-server          # или mariadb-server
+        mysql-server
         ufw
         curl
         wget
@@ -63,53 +65,53 @@ install_packages() {
     echo "Пакеты установлены."
 }
 
-# --- 3. Настройка сервисов ---
+# Настройка сервисов
 configure_services() {
     echo "Настраиваем сервисы..."
 
     # Nginx
     if systemctl is-active --quiet nginx; then
-        echo "   Nginx уже запущен."
+        echo "Nginx уже запущен."
     else
         sudo systemctl enable nginx
         sudo systemctl start nginx
-        echo "   Nginx запущен."
+        echo "Nginx запущен."
     fi
 
-    # MySQL/MariaDB
-    if systemctl is-active --quiet mysql || systemctl is-active --quiet mariadb; then
-        echo "   СУБД уже запущена."
+    # MySQL
+    if systemctl is-active --quiet mysql; then
+        echo "СУБД уже запущена."
     else
-        sudo systemctl enable mysql || sudo systemctl enable mariadb
-        sudo systemctl start mysql || sudo systemctl start mariadb
-        echo "   СУБД запущена."
+        sudo systemctl enable mysql
+        sudo systemctl start mysql
+        echo "СУБД запущена."
     fi
 
     echo "Сервисы настроены."
 }
 
-# --- 4. Создание тестовой БД ---
+# Создание тестовой БД
 create_test_db() {
     echo "Создаём тестовую базу данных..."
 
-    # Временный пароль для root (в реальном сценарии используйте безопасный метод)
-    TEMP_PASS="temp_password_123"
+    # Временный пароль для root
+    TEMP_PASSWORD="root_temp_password"
 
     # Устанавливаем временный пароль для root
-    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${TEMP_PASS}'; FLUSH PRIVILEGES;"
+    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${TEMP_PASSWORD}'; FLUSH PRIVILEGES;"
 
     # Создаём БД и пользователя
-    sudo mysql -u root -p"${TEMP_PASS}" -e "
+    sudo mysql -u root -p"${TEMP_PASSWORD}" -e "
         CREATE DATABASE IF NOT EXISTS test_db;
         CREATE USER IF NOT EXISTS 'test_user'@'localhost' IDENTIFIED BY 'test_pass_123';
         GRANT ALL PRIVILEGES ON test_db.* TO 'test_user'@'localhost';
         FLUSH PRIVILEGES;
     "
 
-    echo "Тестовая БД 'test_db' создана. Пользователь: test_user, пароль: test_pass_猛烈123"
+    echo "Тестовая БД 'test_db' создана. Пользователь: test_user, пароль: test_pass_123"
 }
 
-# --- 5. Настройка фаервола (ufw) ---
+# Настройка фаервола
 configure_firewall() {
     echo "Настраиваем фаервол (ufw)..."
 
@@ -123,16 +125,16 @@ configure_firewall() {
 
     # Включаем ufw
     if sudo ufw status | grep -q "Status: active"; then
-        echo "   ufw уже активен."
+        echo "ufw уже активен."
     else
         sudo ufw --force enable
-        echo "   ufw включён."
+        echo "ufw включён."
     fi
 
     echo "Фаервол настроен."
 }
 
-# --- Основной блок выполнения ---
+# Основной блок скрипта
 main() {
     detect_distro
     install_packages
@@ -141,9 +143,6 @@ main() {
     configure_firewall
 
     echo "Установка завершена успешно!"
-    echo "- Nginx: http://ваш_сервер/
-   - БД: test_db (пользователь: test_user)
-   - Фаервол: разрешены порты 80, 443, 22"
 }
 
 # Запускаем основной блок
