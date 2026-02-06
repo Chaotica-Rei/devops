@@ -49,7 +49,7 @@ detect_distro() {
 install_packages() {
     echo "Устанавливаем необходимые пакеты..."
 
-    # Список пакетов (пример для веб‑сервера + БД)
+    # Список пакетов для установки
     PACKAGES=(
         nginx
         mysql-server
