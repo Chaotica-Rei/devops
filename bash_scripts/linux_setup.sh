@@ -47,10 +47,10 @@ detect_distro() {
 install_packages() {
     echo "Устанавливаем необходимые пакеты..."
 
-    # Список пакетов (пример для веб‑сервера + БД)
+    # Список пакетов для установки
     PACKAGES=(
         nginx
-        mysql-server # или mariadb-server
+        mysql-server 
         ufw
         curl
         wget
@@ -141,12 +141,12 @@ EOF
 
 
     # MySQL/MariaDB
-    if systemctl is-active --quiet mysql || systemctl is-active --quiet mariadb; then
+    if systemctl is-active --quiet mysql; then
         echo "   СУБД уже запущена."
     else
-        sudo systemctl enable mysql || sudo systemctl enable mariadb
-        sudo systemctl start mysql || sudo systemctl start mariadb
-        echo "   СУБД запущена."
+        sudo systemctl enable mysql 
+        sudo systemctl start mysql
+        echo "СУБД запущена."
     fi
 
     echo "Сервисы настроены."
@@ -200,14 +200,13 @@ configure_firewall() {
 main() {
     detect_distro
     install_packages
-    configure_nginx      # Новая функция для детальной настройки Nginx
     configure_services
     create_test_db
     configure_firewall
 
     echo "Установка завершена успешно!"
     echo "- Nginx: http://localhost"
-    echo "- БД: test_db (пользователь: test_user)"
+    echo "- БД: test_db (пользователь: test_user / пароль: test_pass_123)"
     echo "- Фаервол: разрешены порты 80, 443, 22"
 }
 
