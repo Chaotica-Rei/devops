@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Универсальный скрипт установки
-
 set -e  # прекращать выполнение при любой ошибке
 
 echo "Запуск автоматизированного скрипта установки..."
@@ -49,10 +47,10 @@ detect_distro() {
 install_packages() {
     echo "Устанавливаем необходимые пакеты..."
 
-    # Список пакетов для установки
+    # Список пакетов (пример для веб‑сервера + БД)
     PACKAGES=(
         nginx
-        mysql-server
+        mysql-server # или mariadb-server
         ufw
         curl
         wget
@@ -78,13 +76,77 @@ configure_services() {
         echo "Nginx запущен."
     fi
 
-    # MySQL
-    if systemctl is-active --quiet mysql; then
-        echo "СУБД уже запущена."
+    # Создаём базовую конфигурацию для localhost
+    NGINX_CONF="/etc/nginx/sites-available/localhost"
+    NGINX_LINK="/etc/nginx/sites-enabled/localhost"
+
+    cat > "$NGINX_CONF" << 'EOF'
+server {
+    listen 80;
+    server_name localhost;
+
+    root /var/www/localhost;
+    index index.html index.htm index.nginx-debian.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    error_page 404 /404.html;
+    error_page 500 502 503 504 /50x.html;
+
+    location = /404.html {
+        internal;
+    }
+
+    location = /50x.html {
+        internal;
+    }
+}
+EOF
+
+    # Создаём директорию для сайта
+    sudo mkdir -p /var/www/localhost
+    sudo chown -R www-data:www-data /var/www/localhost
+    sudo chmod -R 755 /var/www/localhost
+
+    # Создаём тестовую страницу
+    cat > /var/www/localhost/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nginx</title>
+</head>
+<body>
+    <h1>Добро пожаловать!</h1>
+    <p>Nginx работает корректно.</p>
+</body>
+</html>
+EOF
+
+    # Создаем симлинк
+    sudo ln -sf "$NGINX_CONF" "$NGINX_LINK"
+
+    # Проверяем конфигурацию на ошибки
+    if sudo nginx -t; then
+        echo "Конфигурация Nginx корректна."
     else
-        sudo systemctl enable mysql
-        sudo systemctl start mysql
-        echo "СУБД запущена."
+        echo "Ошибка в конфигурации Nginx!"
+        exit 1
+    fi
+
+    # Перезагружаем Nginx
+    sudo systemctl reload nginx
+    echo "Nginx настроен для http://localhost"
+
+
+    # MySQL/MariaDB
+    if systemctl is-active --quiet mysql || systemctl is-active --quiet mariadb; then
+        echo "   СУБД уже запущена."
+    else
+        sudo systemctl enable mysql || sudo systemctl enable mariadb
+        sudo systemctl start mysql || sudo systemctl start mariadb
+        echo "   СУБД запущена."
     fi
 
     echo "Сервисы настроены."
@@ -138,11 +200,15 @@ configure_firewall() {
 main() {
     detect_distro
     install_packages
+    configure_nginx      # Новая функция для детальной настройки Nginx
     configure_services
     create_test_db
     configure_firewall
 
     echo "Установка завершена успешно!"
+    echo "- Nginx: http://localhost"
+    echo "- БД: test_db (пользователь: test_user)"
+    echo "- Фаервол: разрешены порты 80, 443, 22"
 }
 
 # Запускаем основной блок
