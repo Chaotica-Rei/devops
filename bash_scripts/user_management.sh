@@ -112,7 +112,7 @@ delete_user() {
 }
 
 # Основной блок
-echo "Выберите действие:"
+echo "Выберите опцию:"
 echo "[1] Создать пользователей"
 echo "[2] Удалить пользователей"
 read -p "Введите номер (1 или 2): " choice
@@ -140,7 +140,7 @@ case "$choice" in
             update_permissions "$group"
         done < "$CSV_CREATE"
 
-        log_message "Завершено создание пользователей."
+        log_message "Создание пользователей завершено."
         ;;
 
     2)
@@ -158,11 +158,11 @@ case "$choice" in
             delete_user "$username" "$remove_home"
         done < "$CSV_DELETE"
 
-        log_message "Завершено удаление пользователей."
+        log_message "Удаление пользователей завершено."
         ;;
 
     *)
-        echo "Неверный выбор. Завершение."
+        echo "Неизвестная опция. Завершение."
         exit 1
         ;;
 esac
