@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Скрипт автоматизации управления пользователями системы
+# Для создания пользователей использовать CSV-файл в формате username, fullname, role, group, password
+# Для удаления пользователей использовать CSV-файл в формате username, remove_home (атрибут remove_home принимает значение yes - для удаления домашней директории, no - без удаления домашней директории)
 
 # Настройки
 LOG_FILE="$HOME/log/user_manager.log"
@@ -131,10 +133,8 @@ case "$choice" in
 
             create_user "$username" "$fullname" "$role" "$group" "$password"
 
-            # Добавляем в группу (если не основная)
-            if [ "$group" != "users" ] && [ "$group" != "staff" ]; then
-                add_to_group "$username" "$group"
-            fi
+            # Добавляем в группу 
+            add_to_group "$username" "$group"
 
             # Обновляем права для группы
             update_permissions "$group"
