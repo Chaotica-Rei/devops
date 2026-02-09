@@ -9,7 +9,7 @@ echo "Запуск диагностики системы... $(date)" > "$LOG_DIR
 
 # Создаем нагрузку на CPU, память и диск
 
-echo "\n[1] Создаём нагрузку на CPU, память и диск..." >> "$LOG_DIR/report.txt"
+echo "\n[1] Создаём нагрузку на CPU, память и диск..." >> "$LOG_DIR/report.log"
 
 # Нагрузка на CPU
 echo "CPU load (sha1sum /dev/zero)..."
