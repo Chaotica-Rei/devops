@@ -88,6 +88,7 @@ delete_user() {
     local username="$1"
     local remove_home="$2"
 
+    # Проверяем, существует ли пользователь
     if ! id "$username" &>/dev/null; then
         log_message "WARNING: Пользователь $username не найден."
         return 1
@@ -95,21 +96,24 @@ delete_user() {
 
     local home_dir="/home/$username"
 
-    userdel "$username" 2>> "$LOG_FILE"
+    # Удаление пользователя
+    if [ "$remove_home" = "yes" ]; then
+        deluser --remove-home "$username" 2>> "$LOG_FILE"
+        log_message "INFO: Домашняя директория $home_dir удалена."
+    else
+        deluser "$username" 2>> "$LOG_FILE"
+        log_message "INFO: Домашняя директория $home_dir сохранена."
+    fi
+
+    # Проверяем результат выполнения deluser
     if [ $? -ne 0 ]; then
         log_message "ERROR: Не удалось удалить пользователя $username."
         return 1
     fi
 
-    if [ "$remove_home" = "yes" ]; then
-        rm -rf "$home_dir" 2>> "$LOG_FILE"
-        log_message "INFO: Домашняя директория $home_dir удалена."
-    else
-        log_message "INFO: Домашняя директория $home_dir сохранена."
-    fi
-
     log_message "SUCCESS: Пользователь $username удалён."
 }
+
 
 # Основной блок
 echo "Выберите опцию:"
