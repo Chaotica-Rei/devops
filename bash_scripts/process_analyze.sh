@@ -1,95 +1,97 @@
 #!/bin/bash
 
-# Скрипт для анализа процессов, диагностики системы
+# Скрипт для анализа процессов/диагностики системы
 
-LOG_DIR="$HOME/log"
-mkdir -p "$LOG_DIR"
+echo "Запуск тестов нагрузки системы..."
+echo "PID скрипта: $$"
 
-echo "Запуск диагностики системы... $(date)" > "$LOG_DIR/report.log"
+# Количество процессов для каждого типа нагрузки
+NUM_PROCESSES=3
 
-# Создаем нагрузку на CPU, память и диск
+# Функция нагрузки CPU
+cpu_load() {
+    echo "Запуск процесса CPU-нагрузки (PID: $$)"
+    while true; do
+        # Выполняем интенсивные вычисления
+        for ((i=0; i<10000; i++)); do
+            sqrt=$(echo "sqrt($i)" | bc -l 2>/dev/null || echo $i)
+        done
+    done
+}
 
-echo "\n[1] Создаём нагрузку на CPU, память и диск..." >> "$LOG_DIR/report.log"
+# Функция нагрузки памяти
+memory_load() {
+    echo "Запуск процесса Memory-нагрузки (PID: $$)"
+    # Создаём большой массив в памяти
+    local -a big_array
+    local size=100000
+    for ((i=0; i<size; i++)); do
+        big_array[i]=$(printf "%0100d" $RANDOM)
+    done
+    # Держим память занятой
+    while true; do
+        sleep 1
+    done
+}
 
-# Нагрузка на CPU
-echo "CPU load (sha1sum /dev/zero)..."
-dd if=/dev/zero bs=1M count=1000 | sha1sum &
-CPU_PID=$!
+# Функция нагрузки диска
+disk_load() {
+    echo "Запуск процесса Disk-нагрузки (PID: $$)"
+    local temp_file="/tmp/disk_load_$$.tmp"
+    
+    while true; do
+        # Интенсивная запись
+        dd if=/dev/urandom of=$temp_file bs=1M count=10 2>/dev/null
+        # Интенсивное чтение
+        md5sum $temp_file > /dev/null 2>&1
+        # Удаляем файл для следующей итерации
+        rm -f $temp_file
+    done
+}
 
-# Нагрузка на память
-echo "Memory load (malloc in bash loop)..."
-for i in {1..100}; do
-    head -c 100M /dev/urandom > /tmp/mem_load_$i
-done &
-MEM_PID=$!
+# Запуск процессов CPU-нагрузки
+echo "Запускаем $NUM_PROCESSES процессов CPU-нагрузки..."
+for ((i=0; i<NUM_PROCESSES; i++)); do
+    cpu_load &
+    CPU_PIDS+="$! "
+done
 
-# Нагрузка на диск 
-echo "Disk load (writing to /tmp)..."
-for i in {1..50}; do
-    dd if=/dev/urandom of=/tmp/disk_load_$i bs=1M count=100
-done &
-DISK_PID=$!
+# Запуск процессов Memory-нагрузки
+echo "Запускаем $NUM_PROCESSES процессов Memory-нагрузки..."
+for ((i=0; i<NUM_PROCESSES; i++)); do
+    memory_load &
+    MEMORY_PIDS+="$! "
+done
 
-sleep 10  # Даём нагрузке поработать
+# Запуск процессов Disk-нагрузки
+echo "Запускаем $NUM_PROCESSES процессов Disk-нагрузки..."
+for ((i=0; i<NUM_PROCESSES; i++)); do
+    disk_load &
+    DISK_PIDS+="$! "
+done
 
-# Собираем данные через top/htop/proc
-echo "\nСостояние системы через top (10 сек):" >> "$LOG_DIR/report.log"
-top -b -n 2 -d 5 > "$LOG_DIR/top_output.log"
-cat "$LOG_DIR/top_output.txt" >> "$LOG_DIR/report.log"
+echo "Все процессы запущены!"
+echo "CPU процессы: $CPU_PIDS"
+echo "Memory процессы: $MEMORY_PIDS"
+echo "Disk процессы: $DISK_PIDS"
 
-echo "\nДанные из /proc/meminfo:" >> "$LOG_DIR/report.log"
-cat /proc/meminfo | head -10 >> "$LOG_DIR/report.log"
+# Функция для остановки всех процессов
+stop_all() {
+    echo "Остановка всех нагрузочных процессов..."
+    for pid in $CPU_PIDS $MEMORY_PIDS $DISK_PIDS; do
+        if kill -0 $pid 2>/dev/null; then
+            kill $pid
+            echo "Процесс $pid остановлен"
+        fi
+    done
+    exit 0
+}
 
-echo "\nЗагрузка CPU из /proc/stat:" >> "$LOG_DIR/report.log"
-grep 'cpu ' /proc/stat >> "$LOG_DIR/report.log"
+# Ловим сигнал для остановки
+trap stop_all INT TERM
 
-# --- 2. Статусы процессов: зомби и сироты ---
-
-echo "\n[2] Создаём процессы-зомби и сироты..." >> "$LOG_DIR/report.log"
-
-# Зомби: дочерний процесс завершается, родитель не вызывает wait()
-( sleep 3; exit 42 ) &
-ZOMBIE_PID=$!
-echo "Зомби-процесс запущен с PID: $ZOMBIE_PID" >> "$LOG_DIR/report.log"
-sleep 5  # Зомби появится после завершения дочернего
-
-# Сирота: родитель завершается, дочерний остаётся
-( sleep 10 & ) &
-ORPHAN_PID=$!
-echo "Сирота-процесс запущен с PID: $ORPHAN_PID" >> "$LOG_DIR/report.log"
-kill $$  # Завершаем текущий скрипт, но дочерний продолжит работать
-
-# После завершения скрипта проверим процессы
-sleep 5
-echo "\nСписок процессов (ps aux) после создания зомби/сирот:" >> "$LOG_DIR/report.log"
-ps aux --forest | grep -E "Z|$ZOMBIE_PID|$ORPHAN_PID" >> "$LOG_DIR/report.log"
-
-# --- 3. Использование strace ---
-
-echo "\n[3] Анализ системных вызовов команды 'ls' через strace..." >> "$LOG_DIR/report.log"
-strace -o "$LOG_DIR/strace_ls.log" ls /tmp
-echo "Список системных вызовов записан в $LOG_DIR/strace_ls.log" >> "$LOG_DIR/report.log"
-
-# Выводим топ-10 системных вызовов
-echo "\nТоп-10 системных вызовов:" >> "$LOG_DIR/report.log"
-grep -o '^[a-z][a-z_]*' "$LOG_DIR/strace_ls.log" | sort | uniq -c | sort -nr | head -10 >> "$LOG_DIR/report.log"
-
-# --- 4. Оптимизация: изменение приоритета ---
-
-echo "\n[4] Изменение приоритета процесса (nice)..." >> "$LOG_DIR/report.log"
-
-# Запускаем процесс с низким приоритетом
-nice -n 15 sha1sum /dev/zero &
-NICE_PID=$!
-echo "Процесс с пониженным приоритетом запущен (PID: $NICE_PID)" >> "$LOG_DIR/report.log"
-
-# Сравниваем загрузку CPU через top
-sleep 10
-echo "\nСравнение загрузки CPU (top) для процесса с nice=15:" >> "$LOG_DIR/report.log"
-top -b -n 1 -p $NICE_PID >> "$LOG_DIR/report.log"
-
-# Завершаем все фоновые процессы
-kill $CPU_PID $MEM_PID $DISK_PID $NICE_PID 2>/dev/null
-
-echo "\nДиагностика завершена. Отчёт: $LOG_DIR/report.log" >> "$LOG_DIR/report.log"
-echo "Лог strace: $LOG_DIR/strace_ls.log" >> "$LOG_DIR/report.log"
+# Ждём завершения
+echo "Скрипт работает. Нажмите Ctrl+C для остановки."
+while true; do
+    sleep 10
+done
