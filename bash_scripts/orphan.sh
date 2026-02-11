@@ -32,9 +32,7 @@ TMPFILE=$(mktemp)
     sleep 1
     echo "Parent will be killed now (SIGKILL)"
     echo
-    echo "=== SHELL MESSAGE ==="
     kill -9 $BASHPID
-    echo "=== SHELL MESSAGE END ==="
 
 ) &
 
@@ -52,8 +50,8 @@ echo
 echo "=== Process status via ps ==="
 
 echo "Parent:"
-ps -o pid,ppid,stat,cmd -p $PARENT_PID || echo "Parent not found"
+ps -o pid,ppid,stat -p $PARENT_PID || echo "Parent not found"
 
 echo
 echo "Child:"
-ps -o pid,ppid,stat,cmd -p $CHILD_PID || echo "Child not found"
+ps -o pid,ppid,stat -p $CHILD_PID || echo "Child not found"
