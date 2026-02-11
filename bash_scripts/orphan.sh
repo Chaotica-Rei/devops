@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Скрипт для анализа статусов процессов "родитель" - "дочерний/сирота"
+
 echo "Main script PID: $BASHPID"
 
 TMPFILE=$(mktemp)
@@ -9,6 +11,8 @@ TMPFILE=$(mktemp)
 
     # Родитель явно запускает новый bash как child
     bash -c '
+        echo
+        echo "Creating child PID (from parent)...
         echo "Child PID: $BASHPID"
         echo "Child initial PPID: $PPID"
         sleep 5
@@ -29,7 +33,9 @@ TMPFILE=$(mktemp)
 
 PARENT_PID=$!
 
-echo "Spawned parent PID (from main): $PARENT_PID"
+echo
+echo "Creating parent PID (from main)..."
+echo "Parent PID: $PARENT_PID"
 
 sleep 2
 
