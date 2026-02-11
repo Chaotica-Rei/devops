@@ -3,6 +3,7 @@
 # Скрипт для анализа статусов процессов "родитель" - "дочерний/сирота"
 
 echo "Main script PID: $BASHPID"
+echo "Creating parent PID (from main)..."
 
 TMPFILE=$(mktemp)
 
@@ -34,8 +35,8 @@ TMPFILE=$(mktemp)
 PARENT_PID=$!
 
 echo
-echo "Creating parent PID (from main)..."
-echo "Parent PID: $PARENT_PID"
+#echo "Parent PID: $PARENT_PID"
+#echo "Creating parent PID (from main)..."
 
 sleep 2
 
