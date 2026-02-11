@@ -32,7 +32,7 @@ TMPFILE=$(mktemp)
     sleep 1
     echo "Parent will be killed now (SIGKILL)"
     echo
-    kill -9 $BASHPID 2>/dev/null
+    kill -9 $BASHPID
 
 ) &
 
