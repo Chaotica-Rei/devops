@@ -12,7 +12,8 @@ TMPFILE=$(mktemp)
         echo "Child PID: $BASHPID"
         echo "Child initial PPID: $PPID"
         sleep 5
-        echo "\nChild after parent death. New PPID: $PPID"
+        echo
+        echo "Child after parent death. New PPID: $PPID"
         sleep 30
     ' &
 
@@ -20,7 +21,8 @@ TMPFILE=$(mktemp)
     echo $CHILD_PID > "$TMPFILE"
 
     sleep 1
-    echo "Parent will be killed now (SIGKILL)\n"
+    echo "Parent will be killed now (SIGKILL)"
+    echo
     kill -9 $BASHPID
 
 ) &
