@@ -1,4 +1,5 @@
 #!/bin/bash
+set +m # отключим job control
 
 echo "Main script PID: $BASHPID"
 
