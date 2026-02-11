@@ -8,64 +8,54 @@ TMPFILE=$(mktemp)
     echo "Creating parent PID (from main)..."
     echo "Parent PID: $BASHPID"
 
-    # Родитель запускает child-процесс, который сразу завершается, но не ждёт его (создаёт зомби)
+    # Создаём дочерний процесс, который быстро завершится
     bash -c '
         echo
-        echo "Creating child PID (from parent)..."
-        echo "Child PID: $BASHPID"
+        echo "Creating child (zombie candidate) PID: $$"
         echo "Child initial PPID: $PPID"
-        echo
-
-        # Child-процесс делает что-то короткое и завершается
         sleep 2
         echo "Child is exiting now..."
-        exit 0
+        exit 42  # произвольный код возврата
     ' &
 
     CHILD_PID=$!
     echo $CHILD_PID > "$TMPFILE"
 
-    echo "Parent will NOT wait for child. Parent will exit immediately."
-    echo
+    echo "Child PID to become zombie: $CHILD_PID"
+    sleep 1
 
-    sleep 2  # Увеличена задержка перед завершением parent
-    echo "Parent exiting without waiting for child..."
-    exit 0  # Родитель завершается, не забирая статус ребёнка
+    # Игнорируем SIGCHLD — родитель не будет собирать статус дочернего
+    trap "" SIGCHLD
+
+    echo "Parent ignoring SIGCHLD. Child will become zombie."
+    echo "Parent will sleep for 15 seconds to keep child in zombie state."
+
+    sleep 15
 
 ) &
 
 PARENT_PID=$!
 
 echo
-sleep 4  # Увеличена начальная задержка
+sleep 2
 
 CHILD_PID=$(cat "$TMPFILE")
 rm "$TMPFILE"
 
-sleep 6  # Увеличена задержка перед чтением PID
-
-sleep 3  # Дополнительная задержка перед проверкой статуса
+# Ждём, пока дочерний процесс точно завершится, но родитель ещё жив
+sleep 3
 
 echo
 echo "=== Process status via ps ==="
 
 echo "Parent:"
-ps -o pid,ppid,stat,cmd -p $PARENT_PID || echo "Parent not found (expected, as it exited)"
+ps -o pid,ppid,stat,comm -p $PARENT_PID || echo "Parent not found"
 
 echo
 echo "Child (should be zombie):"
-ps -o pid,ppid,stat,cmd -p $CHILD_PID 2>/dev/null
-if [ $? -ne 0 ]; then
-    echo "Child not found — it might have been cleaned up already."
-else
-    STATUS=$(ps -o stat= -p $CHILD_PID)
-    if [[ "$STATUS" == *"Z"* ]]; then
-        echo "✓ Child is a zombie (status: $STATUS)"
-    else
-        echo "✗ Child is NOT a zombie (status: $STATUS)"
-    fi
-fi
+ps -o pid,ppid,stat,comm -p $CHILD_PID 2>/dev/null || echo "Child not found (may have been reaped)"
 
+# Дополнительная проверка — ищем зомби в системе
 echo
-echo "Full ps output for zombie check (looking for Z+):"
-ps aux | grep -E "(PID|$CHILD_PID)" | grep -v grep
+echo "All zombie processes in the system:"
+ps aux | awk '$8=="Z" {print $0}' || echo "No zombies found"
