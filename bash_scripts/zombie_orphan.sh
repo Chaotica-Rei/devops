@@ -2,20 +2,20 @@
 
 echo "Main script PID: $BASHPID"
 
+TMPFILE=$(mktemp)
+
 (
     echo "Parent PID: $BASHPID"
 
     (
         echo "Child PID: $BASHPID"
         echo "Child initial PPID: $PPID"
-
         sleep 5
         echo "Child after parent death. New PPID: $PPID"
         sleep 30
     ) &
 
-    CHILD_PID=$!
-    echo "Child real PID (from parent): $CHILD_PID"
+    echo $! > "$TMPFILE"
 
     sleep 1
     echo "Parent will be killed now (SIGKILL)"
@@ -27,7 +27,12 @@ PARENT_PID=$!
 
 echo "Spawned parent PID (from main): $PARENT_PID"
 
-sleep 7
+sleep 2
+
+CHILD_PID=$(cat "$TMPFILE")
+rm "$TMPFILE"
+
+sleep 6
 
 echo
 echo "=== Process status via ps ==="
