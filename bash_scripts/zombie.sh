@@ -28,9 +28,9 @@ TMPFILE=$(mktemp)
     trap "" SIGCHLD
 
     echo "Parent ignoring SIGCHLD. Child will become zombie."
-    echo "Parent will sleep for 15 seconds to keep child in zombie state."
+    echo "Parent will sleep for 30 seconds to keep child in zombie state."
 
-    sleep 15
+    sleep 30
 
 ) &
 
