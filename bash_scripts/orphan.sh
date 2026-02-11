@@ -12,7 +12,7 @@ TMPFILE=$(mktemp)
     # Родитель явно запускает новый bash как child
     bash -c '
         echo
-        echo "Creating child PID (from parent)...
+        echo "Creating child PID (from parent)..."
         echo "Child PID: $BASHPID"
         echo "Child initial PPID: $PPID"
         sleep 5
