@@ -1,60 +1,44 @@
 #!/bin/bash
 
-echo "=== Начальное состояние процессов ==="
-ps -eo pid,ppid,stat,comm | grep -E "(Z|defunct|orphan_demo|zombie_demo)"
+echo "Main script PID: $$"
 
-# --- Создание процесса-зомби ---
-echo -e "\n=== Создание процесса-зомби ==="
+# Запускаем "родительский" процесс в фоне
 (
-    # Дочерний процесс: завершаем его немедленно
+    echo "Parent PID: $$"
+
+    # Запускаем дочерний процесс
     (
-        echo "Дочерний процесс (PID: $$) запускается и сразу завершается"
-        sleep 1
-        echo "Дочерний процесс (PID: $$) завершён"
-    ) &
+        echo "Child PID: $$"
+        echo "Child initial PPID: $PPID"
 
-    # Родительский процесс: не вызываем wait(), чтобы дочерний стал зомби
-    child_pid=$!
-    echo "Родительский процесс (PID: $$) удерживает PID зомби: $child_pid"
-    echo "Родитель спит 10 секунд — за это время можно проверить зомби"
-    sleep 10
+        # Даем время родителю умереть
+        sleep 5
 
-    echo "Родитель завершён. Зомби должен исчезнуть после его завершения."
-) &
+        echo "Child after parent death. New PPID: $PPID"
 
-zombie_parent_pid=$!
-echo "PID родительского процесса для зомби: $zombie_parent_pid"
-
-# Ждём, чтобы процесс-зомби успел появиться
-sleep 2
-
-# Проверяем наличие зомби
-echo -e "\n--- Статус процессов после создания зомби ---"
-ps -eo pid,ppid,stat,comm | grep -E "(Z|defunct|$zombie_parent_pid)"
-
-# --- Создание процесса-сироты ---
-echo -e "\n=== Создание процесса-сироты ==="
-(
-    # Родительский процесс: запускает дочерний и завершается
-    (
-        echo "Сирота (PID: $$) запущен, будет жить 30 секунд"
+        # Держим процесс живым, чтобы его можно было увидеть в ps
         sleep 30
     ) &
 
-    orphan_pid=$!
-    echo "Родитель создал сироту с PID: $orphan_pid и завершается"
+    CHILD_PID=$!
+    echo "Child real PID (from parent): $CHILD_PID"
+
+    # Небольшая пауза, чтобы дочерний точно стартовал
+    sleep 1
+
+    echo "Parent will be killed now (SIGKILL)"
+    kill -9 $$
+
 ) &
 
-orphan_creator_pid=$!
-echo "PID процесса, создавшего сироту: $orphan_creator_pid"
+PARENT_PID=$!
 
-# Ждём завершения родителя, чтобы сирота «остался один»
-sleep 2
+echo "Spawned parent PID (from main): $PARENT_PID"
 
-echo -e "\n--- Статус процессов после создания сироты ---"
-ps -eo pid,ppid,stat,comm | grep -E "(PID|$orphan_pid|$orphan_creator_pid)"
+# Подождем, пока родитель умрет, а ребенок станет сиротой
+sleep 7
 
-# Финальная проверка через 5 секунд
-sleep 5
-echo -e "\n=== Финальное состояние процессов ==="
-ps -eo pid,ppid,stat,comm | grep -E "(Z|defunct|orphan|$orphan_pid)"
+echo
+echo "=== Process status via ps ==="
+ps -o pid,ppid,stat,cmd -p $PARENT_PID --no-headers 2>/dev/null || echo "Parent process is not found (terminated)"
+ps -o pid,ppid,stat,cmd --ppid 1 | grep sleep || true
