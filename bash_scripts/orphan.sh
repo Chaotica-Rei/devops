@@ -32,16 +32,15 @@ TMPFILE=$(mktemp)
     sleep 1
     echo "Parent will be killed now (SIGKILL)"
     echo
+    echo "=== SHELL MESSAGE ==="
     kill -9 $BASHPID
+    echo "=== SHELL MESSAGE END ==="
 
 ) &
 
 PARENT_PID=$!
 
 echo
-#echo "Parent PID: $PARENT_PID"
-#echo "Creating parent PID (from main)..."
-
 sleep 2
 
 CHILD_PID=$(cat "$TMPFILE")
