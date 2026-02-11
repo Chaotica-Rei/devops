@@ -5,7 +5,6 @@
 
 echo "Main script PID: $BASHPID"
 
-
 TMPFILE=$(mktemp)
 
 (   
