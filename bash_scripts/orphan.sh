@@ -20,7 +20,9 @@ TMPFILE=$(mktemp)
         echo
         sleep 5
         echo
-        echo "Child after parent death. New PPID: $PPID"
+        sleep 1
+        NEW_PPID=$(ps -o ppid= -p $$)
+        echo "Child after parent death. New PPID: $NEW_PPID"
         sleep 30
     ' &
 
