@@ -70,7 +70,7 @@ for ((i=0; i<NUM_PROCESSES; i++)); do
     DISK_PIDS+="$! "
 done
 
-echo "Все процессы запущены!"
+echo "Все процессы запущены."
 echo "CPU процессы: $CPU_PIDS"
 echo "Memory процессы: $MEMORY_PIDS"
 echo "Disk процессы: $DISK_PIDS"
