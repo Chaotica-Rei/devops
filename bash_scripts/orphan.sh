@@ -1,5 +1,4 @@
 #!/bin/bash
-set +m # отключим job control
 
 echo "Main script PID: $BASHPID"
 
@@ -13,7 +12,7 @@ TMPFILE=$(mktemp)
         echo "Child PID: $BASHPID"
         echo "Child initial PPID: $PPID"
         sleep 5
-        echo "Child after parent death. New PPID: $PPID"
+        echo "\nChild after parent death. New PPID: $PPID"
         sleep 30
     ' &
 
@@ -21,7 +20,7 @@ TMPFILE=$(mktemp)
     echo $CHILD_PID > "$TMPFILE"
 
     sleep 1
-    echo "Parent will be killed now (SIGKILL)"
+    echo "Parent will be killed now (SIGKILL)\n"
     kill -9 $BASHPID
 
 ) &
