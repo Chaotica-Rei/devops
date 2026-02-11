@@ -1,85 +1,104 @@
 #!/bin/bash
 
-echo "Запуск процессов нагрузки CPU, памяти и диска (по 3 процесса на каждый тип)"
-echo "Нагрузка: CPU — 20 %, память — 20 %, диск — 30 % (каждый процесс)"
-echo "Для остановки нажмите Ctrl+C"
+# Массивы для хранения PID процессов
+cpu_pids=()
+memory_pids=()
+disk_pids=()
 
-# Массив для хранения всех PID
-pids=()
-
-# Функция для обработки сигнала Ctrl+C
-cleanup() {
-    echo -e "\nОстановка всех процессов..."
-    for pid in "${pids[@]}"; do
-        if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid"
-            echo "Процесс PID $pid остановлен"
-        fi
+# Функция для создания нагрузки на CPU
+start_cpu_load() {
+    # Бесконечный цикл с вычислениями
+    while true; do
+        # Выполняем интенсивные вычисления
+        for ((i=0; i<1000000; i++)); do
+            j=$((i * i + i))
+        done
     done
-    # Удаляем временные файлы, созданные для нагрузки диска
-    rm -f /tmp/disk_load_* 2>/dev/null
-    echo "Все процессы завершены. Временные файлы удалены. Выход."
+}
+
+# Функция для создания нагрузки на память
+start_memory_load() {
+    local data=""
+    # Постоянно увеличиваем строку, потребляя память
+    while true; do
+        data="${data}$(printf '%010000s' ' ')"
+        # Периодически очищаем часть данных, чтобы не исчерпать всю память мгновенно
+        if [ ${#data} -gt 1000000 ]; then
+            data="${data:50000}"
+        fi
+        sleep 0.1
+    done
+}
+
+# Функция для создания нагрузки на диск
+start_disk_load() {
+    local temp_file="/tmp/disk_load_$$_$(date +%s%N)"
+    # Создаём и перезаписываем временный файл
+    while true; do
+        # Записываем случайные данные в файл
+        head -c 10M /dev/urandom > "$temp_file"
+        # Удаляем файл и создаём новый
+        rm -f "$temp_file"
+        temp_file="/tmp/disk_load_$$_$(date +%s%N)"
+        sleep 0.5
+    done
+}
+
+# Обработчик прерывания (Ctrl+C)
+cleanup() {
+    echo -e "\n\nПолучен сигнал прерывания. Завершаем процессы..."
+    
+    # Завершаем все процессы CPU
+    for pid in "${cpu_pids[@]}"; do
+        kill -9 "$pid" 2>/dev/null && echo "Процесс CPU (PID: $pid) завершён"
+    done
+    
+    # Завершаем все процессы памяти
+    for pid in "${memory_pids[@]}"; do
+        kill -9 "$pid" 2>/dev/null && echo "Процесс памяти (PID: $pid) завершён"
+    done
+    
+    # Завершаем все процессы диска
+    for pid in "${disk_pids[@]}"; do
+        kill -9 "$pid" 2>/dev/null && echo "Процесс диска (PID: $pid) завершён"
+    done
+    
+    echo "Все процессы завершены. Выход."
     exit 0
 }
 
-# Перехватываем сигнал прерывания (Ctrl+C)
-trap cleanup INT
+# Устанавливаем обработчик прерывания
+trap cleanup INT TERM
 
-# === Нагрузка CPU (3 процесса, 20 % каждый) ===
-echo "Запуск 3 процессов нагрузки CPU (20 % каждый)..."
+echo "Запуск процессов с нагрузкой..."
+
+# Запускаем 3 процесса для нагрузки CPU
+echo "Запускаем процессы для нагрузки CPU:"
 for i in {1..3}; do
-    # Используем stress с регулируемой интенсивностью через --cpu-method
-    stress --cpu 1 --cpu-method all --timeout 3600s --metrics-brief > /dev/null 2>&1 &
-    cpu_pid=$!
-    pids+=("$cpu_pid")
-    echo "PID процесса нагрузки CPU #$i: $cpu_pid"
+    start_cpu_load &
+    cpu_pids+=($!)
+    echo "PID процесса CPU $i: $!"
 done
 
-# Для точной регулировки до 20 % используем cpulimit в дополнение к stress
-echo "Настройка ограничения CPU до 20 % для каждого процесса..."
-sleep 2  # Даём процессам запуститься
-for pid in $(pgrep -f "stress --cpu 1"); do
-    cpulimit -p "$pid" -l 20 -b &
-    echo "Ограничение CPU до 20 % применено к PID $pid"
-done
-
-# === Нагрузка памяти (3 процесса, 20 % от RAM каждый) ===
-echo "Запуск 3 процессов нагрузки памяти (20 % RAM каждый)..."
-total_mem=$(free | awk '/^Mem:/ {print $2}')
-target_mem=$((total_mem * 20 / 100))  # 20 % вместо 30 %
-
+# Запускаем 3 процесса для нагрузки памяти
+echo -e "\nЗапускаем процессы для нагрузки памяти:"
 for i in {1..3}; do
-    stress --vm 1 --vm-bytes "${target_mem}k" --timeout 3600s --metrics-brief > /dev/null 2>&1 &
-    mem_pid=$!
-    pids+=("$mem_pid")
-    echo "PID процесса нагрузки памяти #$i: $mem_pid"
+    start_memory_load &
+    memory_pids+=($!)
+    echo "PID процесса памяти $i: $!"
 done
 
-# === Нагрузка диска (3 процесса, ~30 % IOPS каждый) ===
-echo "Запуск 3 процессов нагрузки диска (~30 % IO каждый)..."
-# Создаём директорию для временных файлов
-mkdir -p /tmp/disk_load
-
+# Запускаем 3 процесса для нагрузки диска
+echo -e "\nЗапускаем процессы для нагрузки диска:"
 for i in {1..3}; do
-    temp_file="/tmp/disk_load/disk_load_$(date +%s%N)_$i"
-    
-    # Для равномерной нагрузки используем цикл записи/чтения
-    while true; do
-        # Запись: 30 МБ блоками по 1 МБ
-        dd if=/dev/zero of="$temp_file" bs=1M count=30 oflag=dsync status=none 2>/dev/null && \
-        # Чтение: проверка целостности
-        dd if="$temp_file" of=/dev/null bs=1M count=30 status=none 2>/dev/null && \
-        # Удаление файла для новой итерации
-        rm -f "$temp_file" 2>/dev/null
-        sleep 0.5  # Пауза для стабилизации нагрузки
-    done &
-    disk_pid=$!
-    pids+=("$disk_pid")
-    echo "PID процесса нагрузки диска #$i: $disk_pid"
+    start_disk_load &
+    disk_pids+=($!)
+    echo "PID процесса диска $i: $!"
 done
+
+echo -e "\nВсе процессы запущены. Ожидание прерывания (Ctrl+C)..."
 
 # Бесконечный цикл ожидания
-echo "Все 9 процессов запущены с заданной нагрузкой. Ожидание сигнала остановки (Ctrl+C)..."
 while true; do
     sleep 1
 done
