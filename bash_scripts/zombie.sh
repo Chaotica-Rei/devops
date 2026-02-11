@@ -57,7 +57,7 @@ for i in {1..30}; do
         ZOMBIE_FOUND=1
         break
     fi
-    sleep 0.1
+    sleep 0.05
 done
 
 if [ $ZOMBIE_FOUND -eq 0 ]; then
