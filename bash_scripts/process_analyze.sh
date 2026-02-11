@@ -1,14 +1,14 @@
 #!/bin/bash
 
-echo "Запуск процессов нагрузки CPU, памяти и диска (примерно 30 % каждый)..."
+echo "Запуск процессов нагрузки CPU, памяти и диска (по 3 процесса на каждый тип, ~30 % нагрузки каждый)..."
 echo "Для остановки нажмите Ctrl+C"
 
-# Массивы для хранения PID
+# Массив для хранения всех PID
 pids=()
 
 # Функция для обработки сигнала Ctrl+C
 cleanup() {
-    echo -e "\nОстановка процессов..."
+    echo -e "\nОстановка всех процессов..."
     for pid in "${pids[@]}"; do
         if kill -0 "$pid" 2>/dev/null; then
             kill "$pid"
@@ -22,33 +22,40 @@ cleanup() {
 # Перехватываем сигнал прерывания (Ctrl+C)
 trap cleanup INT
 
-# Нагрузка CPU (30 %)
-echo "Запуск процесса нагрузки CPU..."
-stress --cpu 1 --timeout 3600s --metrics-brief > /dev/null 2>&1 &
-cpu_pid=$!
-pids+=("$cpu_pid")
-echo "PID процесса нагрузки CPU: $cpu_pid"
+# === Нагрузка CPU (3 процесса, ~30 % каждый) ===
+echo "Запуск 3 процессов нагрузки CPU..."
+for i in {1..3}; do
+    stress --cpu 1 --timeout 3600s --metrics-brief > /dev/null 2>&1 &
+    cpu_pid=$!
+    pids+=("$cpu_pid")
+    echo "PID процесса нагрузки CPU #$i: $cpu_pid"
+done
 
-# Нагрузка памяти (30 % от доступной RAM)
-echo "Запуск процесса нагрузки памяти..."
+# === Нагрузка памяти (3 процесса, 30 % от RAM каждый) ===
+echo "Запуск 3 процессов нагрузки памяти..."
 total_mem=$(free | awk '/^Mem:/ {print $2}')
 target_mem=$((total_mem * 30 / 100))
-stress --vm 1 --vm-bytes "${target_mem}k" --timeout 3600s --metrics-brief > /dev/null 2>&1 &
-mem_pid=$!
-pids+=("$mem_pid")
-echo "PID процесса нагрузки памяти: $mem_pid"
 
-# Нагрузка диска (запись ~30 % IOPS, имитация активности)
-echo "Запуск процесса нагрузки диска..."
-# Создаём временный файл для нагрузки диска
-temp_file="/tmp/disk_load_$(date +%s%N)"
-dd if=/dev/zero of="$temp_file" bs=1M count=100 oflag=dsync status=none &
-disk_pid=$!
-pids+=("$disk_pid")
-echo "PID процесса нагрузки диска: $disk_pid"
+for i in {1..3}; do
+    stress --vm 1 --vm-bytes "${target_mem}k" --timeout 3600s --metrics-brief > /dev/null 2>&1 &
+    mem_pid=$!
+    pids+=("$mem_pid")
+    echo "PID процесса нагрузки памяти #$i: $mem_pid"
+done
+
+# === Нагрузка диска (3 процесса, имитация активности) ===
+echo "Запуск 3 процессов нагрузки диска..."
+for i in {1..3}; do
+    temp_file="/tmp/disk_load_$(date +%s%N)_$i"
+    # Используем dd с разными параметрами для разнообразия нагрузки
+    dd if=/dev/zero of="$temp_file" bs=1M count=$((50 + i * 10)) oflag=dsync status=none &
+    disk_pid=$!
+    pids+=("$disk_pid")
+    echo "PID процесса нагрузки диска #$i: $disk_pid"
+done
 
 # Бесконечный цикл ожидания
-echo "Процессы запущены. Ожидание сигнала остановки..."
+echo "Все 9 процессов запущены. Ожидание сигнала остановки (Ctrl+C)..."
 while true; do
     sleep 1
 done
