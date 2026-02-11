@@ -3,11 +3,12 @@
 # Скрипт для анализа статусов процессов "родитель" - "дочерний/сирота"
 
 echo "Main script PID: $BASHPID"
-echo "Creating parent PID (from main)..."
+
 
 TMPFILE=$(mktemp)
 
-(
+(   
+    echo "Creating parent PID (from main)..."
     echo "Parent PID: $BASHPID"
 
     # Родитель явно запускает новый bash как child
@@ -16,6 +17,7 @@ TMPFILE=$(mktemp)
         echo "Creating child PID (from parent)..."
         echo "Child PID: $BASHPID"
         echo "Child initial PPID: $PPID"
+        echo
         sleep 5
         echo
         echo "Child after parent death. New PPID: $PPID"
