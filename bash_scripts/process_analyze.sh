@@ -13,7 +13,7 @@ cpu_load() {
     echo "Запуск процесса CPU-нагрузки (PID: $$)"
     while true; do
         # Выполняем интенсивные вычисления
-        for ((i=0; i<10000; i++)); do
+        for ((i=0; i<100000; i++)); do
             sqrt=$(echo "sqrt($i)" | bc -l 2>/dev/null || echo $i)
         done
     done
@@ -24,7 +24,7 @@ memory_load() {
     echo "Запуск процесса Memory-нагрузки (PID: $$)"
     # Создаём большой массив в памяти
     local -a big_array
-    local size=100000
+    local size=1000000
     for ((i=0; i<size; i++)); do
         big_array[i]=$(printf "%0100d" $RANDOM)
     done
