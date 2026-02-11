@@ -28,8 +28,7 @@ TMPFILE=$(mktemp)
     echo "Parent will NOT wait for child. Parent will exit immediately."
     echo
 
-    # Важный момент: родитель НЕ вызывает wait(), поэтому child становится зомби
-    sleep 1
+    sleep 2  # Увеличена задержка перед завершением parent
     echo "Parent exiting without waiting for child..."
     exit 0  # Родитель завершается, не забирая статус ребёнка
 
@@ -38,12 +37,14 @@ TMPFILE=$(mktemp)
 PARENT_PID=$!
 
 echo
-sleep 3  # Даём время на создание и завершение child
+sleep 4  # Увеличена начальная задержка
 
 CHILD_PID=$(cat "$TMPFILE")
 rm "$TMPFILE"
 
-sleep 2  # Ждём, чтобы родитель точно успел завершиться
+sleep 6  # Увеличена задержка перед чтением PID
+
+sleep 3  # Дополнительная задержка перед проверкой статуса
 
 echo
 echo "=== Process status via ps ==="
@@ -57,12 +58,11 @@ ps -o pid,ppid,stat,cmd -p $CHILD_PID 2>/dev/null
 if [ $? -ne 0 ]; then
     echo "Child not found — it might have been cleaned up already."
 else
-    # Дополнительно проверяем статус: ищем 'Z' в поле stat
     STATUS=$(ps -o stat= -p $CHILD_PID)
     if [[ "$STATUS" == *"Z"* ]]; then
-        echo "Child is a zombie (status: $STATUS)"
+        echo "✓ Child is a zombie (status: $STATUS)"
     else
-        echo "Child is NOT a zombie (status: $STATUS)"
+        echo "✗ Child is NOT a zombie (status: $STATUS)"
     fi
 fi
 
