@@ -2,46 +2,64 @@
 
 # Скрипт для автоматизированного процесса резервного копирования файлов и проверки целостности
 
-# переменные 
-SOURCE_DIR="$HOME/source" # начальная директория, из которой будем делать бэкап
-BACKUP_DIR="$HOME/backup" # директория для бэкапа
-LOG_FILE="$HOME/backup/backup.log" # лог-файл
-DATE=$(date +"%Y%m%d_%H%M%S") # временная метка
-ARCHIVE_NAME="backup_$DATE.tar.gz" # имя архива
-ARCHIVE_PATH="$BACKUP_DIR/$ARCHIVE_NAME" # путь архива
-MD5_FILE="$ARCHIVE_PATH.md5" # контрольная сумма
+# Настройка для cron (ежедневное копирование в 2 часа ночи), заменить user на своего пользователя:
+# 0 2 * * * /home/user/backup.sh
 
-# создаем директории
-mkdir -p "$SOURCE_DIR" "$BACKUP_DIR"
+# Настройки
+SOURCE="$HOME/data"                # директория с данными для резервного копирования
+BACKUP_DIR="$HOME/backups"         # директория для хранения резервных копий
+LOG_FILE="$HOME/backup.log"        # лог-файл
+DATE=$(date +"%Y-%m-%d_%H-%M-%S")  # метка времени для именования бэкапа
+CURRENT_BACKUP="$BACKUP_DIR/$DATE" # директория для текущего бэкапа 
+LAST_BACKUP="$BACKUP_DIR/latest"   # ссылка на последний бэкап
 
-# создаем архив через tar
-echo "[$DATE] Начато резервное копирование из $SOURCE_DIR в $ARCHIVE_PATH" >> "$LOG_FILE"
+# Лог-функции
+log_info() {
+    echo "[$DATE] INFO: $1" >> "$LOG_FILE"
+}
 
-tar -czf "$ARCHIVE_PATH" -C "$SOURCE_DIR" . 2>> "$LOG_FILE"
+log_error() {
+    echo "[$DATE] ERROR: $1" | tee -a "$LOG_FILE" >&2
+}
 
+# Проверка существования директории
+mkdir -p "$BACKUP_DIR"
+
+# Инкрементальное копирование
+log_info "Начало резервного копирования..."
+
+if [ -d "$LAST_BACKUP" ]; then
+    rsync -a --delete --link-dest="$LAST_BACKUP" "$SOURCE/" "$CURRENT_BACKUP"
+else
+    rsync -a "$SOURCE/" "$CURRENT_BACKUP"
+fi
+
+# Проверка успешности rsync
 if [ $? -ne 0 ]; then
-    echo "[$DATE] ОШИБКА: Создание архива завершилось с ошибкой" >&2
+    log_error "Резервное копирование не удалось!"
     exit 1
 fi
 
-# проверка целостности с md5sum
-md5sum "$ARCHIVE_PATH" > "$MD5_FILE" 2>> "$LOG_FILE"
-
+# Архивация 
+cd "$BACKUP_DIR"
+tar -cf "$DATE.tar" "$DATE"
 if [ $? -ne 0 ]; then
-    echo "[$DATE] ОШИБКА: Не удалось сгенерировать md5sum для $ARCHIVE_PATH" >&2
+    log_error "Не удалось создать архив!"
     exit 1
 fi
 
-# проверка корректности md5sum
-md5sum -c "$MD5_FILE" >> "$LOG_FILE" 2>&1
-
+# Генерация контрольной суммы / Проверка целостности
+md5sum "$DATE.tar" > "$DATE.tar.md5"
+md5sum -c "$DATE.tar.md5"
 if [ $? -ne 0 ]; then
-    echo "[$DATE] ОШИБКА: Проверка md5sum не прошла для $ARCHIVE_PATH" >&2
+    log_error "Проверка целостности не удалась!"
     exit 1
 fi
 
-# завершение
-echo "[$DATE] Резервное копирование успешно завершено: $ARCHIVE_PATH" >> "$LOG_FILE"
-echo "[$DATE] Файл контрольной суммы: $MD5_FILE" >> "$LOG_FILE"
+# Обновляем ссылку на последний бэкап
+rm -f "$LAST_BACKUP"
+ln -s "$CURRENT_BACKUP" "$LAST_BACKUP"
 
+# Логирование
+log_info "Бэкап успешно завершен"
 exit 0
